@@ -10,43 +10,61 @@
     <link rel="stylesheet" href="raycastercss.css">
   </head>
   <body> 
-  
-
-
 
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.120.1/build/three.module.js';
     import { GLTFLoader } from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/GLTFLoader.js';
     import {OrbitControls} from 'https://unpkg.com/three@0.108.0/examples/jsm/controls/OrbitControls.js';
 
+
+
+    /* TODO
+    
+    make icon + transparent
+    rotate around once 
+    icons appear after
+
+    */
+
     // Canvas dimensions
     const xWidth =  1280;
     const yHeight = 720;
 
-    // variables 
+    // Global Variables 
     let scene, camera, renderer, controls;
     let raycaster = new THREE.Raycaster();
     let mouse = new THREE.Vector2(), INTERSECTED;
 
     // 3-D models
     let fuseIcon,finsIcon;
-    let model = [];
-    let is_rotating = false;
-         
-    scene = new THREE.Scene();
-    //scene.background = new THREE.Color(0xcccccc);
-    scene.background = new THREE.Color(0xFFFFFF);
-    camera = new THREE.PerspectiveCamera(90,window.innerWidth/window.innerHeight);
+    let model = [];   // model consists of different parts
 
+    // UI-part
+    let is_rotating = true;
+    
+    let intro = true;
+    
+    // create the three.js scene
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xFFFFFF);
+
+    // create a camera
+    camera = new THREE.PerspectiveCamera(45,xWidth/yHeight);
+
+    // create the renderer 
     renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setSize(xWidth,yHeight);
-      
-    $('body').append(renderer.domElement);
+
+    var scene3d = document.getElementById("scene3d");
+    scene3d.appendChild(renderer.domElement); 
+    
+    //$('body').append(renderer.domElement);
+
     $('p').append(renderer.domElement);
 
     controls = new OrbitControls( camera, renderer.domElement);
     controls.enablePan = false;
-    camera.position.z = 50;
+    camera.position.z = 60;
    
     // LIGHTS
     const light1 = new THREE.PointLight(0xffffff,3);
@@ -79,13 +97,13 @@
     texture.repeat.set(2,1);
     var m_icon = new THREE.MeshBasicMaterial( { map: texture } );
     var geometry = new THREE.SphereBufferGeometry( 2, 16, 26 );
-
+    
     fuseIcon = new THREE.Mesh( geometry, m_icon );
     fuseIcon.name = "Fuse";
     fuseIcon.userData = new THREE.Vector3(0.5, 42, 24);
     fuseIcon.position.set(0,18,8);    
     scene.add(fuseIcon);
-   
+    
     finsIcon = new THREE.Mesh( geometry, m_icon );
     finsIcon.name = "Fin";
     finsIcon.userData = new THREE.Vector3(-2, -29.3, 33);
@@ -98,13 +116,14 @@
    loadModels();
    animate();
 
-    function loadModels(){       
+    function loadModels()
+    {       
         const loader = new GLTFLoader();
         const onLoad = ( gltf, position ) => {
               gltf.scene.traverse(function (child){
                 gltf.scene.position.copy(position);
               // scale the mesh up
-              child.scale.set(1.2,1.2,1.2);
+              //child.scale.set(1.2,1.2,1.2);
               model.push(child);
              }
           );
@@ -121,7 +140,8 @@
     }
 
     
-		function moveAndLookAt(camera, dstpos, dstlookat, options) {
+    function moveAndLookAt(camera, dstpos, dstlookat, options) 
+    {
       options || (options = {duration: 3000});
 
       var origpos = new THREE.Vector3().copy(camera.position); // original position
@@ -158,16 +178,26 @@
       
         }).onComplete(function(){}).start();
       }).call(this);
-		}
+    }
 
     function animate(){
       // from where to raycast
       raycaster.setFromCamera( mouse, camera );
       
+      if(intro){
+        
+      }
+
       if(is_rotating){    
         model.forEach(rotateComponents); 
-        function rotateComponents(c){
-          c.rotation.y += 0.005;
+        function rotateComponents(c)
+        {
+          if(c.rotation.y <= Math.PI ){
+            c.rotation.y += 0.005;
+          }else{
+            is_rotating = false;
+            c.rotation.y = 0;
+          }
         }
       }
       
@@ -185,19 +215,19 @@
          // if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
           
             INTERSECTED = intersects[ 0 ].object;
-				//	INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
-				//	INTERSECTED.material.emissive.setHex( 0xffff00 );
+        //  INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
+        //  INTERSECTED.material.emissive.setHex( 0xffff00 );
             console.log((INTERSECTED.name));
           if ( (INTERSECTED.name).includes("fin")){     document.getElementById("info").innerHTML = "Fin";  }
           if ( (INTERSECTED.name).includes("fuse")){     document.getElementById("info").innerHTML = "Fuse";  }
           if ( (INTERSECTED.name).includes("body")){     document.getElementById("info").innerHTML = "Metal body";  }
 
-				}
+        }
 
-			} else {  // if there is no hit
-				//	if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
+      } else {  // if there is no hit
+        //  if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
           document.getElementById("info").innerHTML = "";
-					INTERSECTED = null;
+          INTERSECTED = null;
       }
 
       requestAnimationFrame(animate);
@@ -209,25 +239,25 @@
 
     // mouse event
     function onMouseMove(event)
-    {
+    {   // use event.offsetX instead of clientX to get the coordinates relative to the div
         event.preventDefault();
-        mouse.x = ( event.clientX / xWidth ) * 2 - 1;
-	      mouse.y = - ( event.clientY / yHeight ) * 2 + 1;
+        mouse.x =   ( event.offsetX / xWidth ) * 2 - 1;
+        mouse.y = - ( event.offsetY / yHeight) * 2 + 1;
     }
     
     function onWindowResize()
     {
-	      renderer.setSize( window.innerWidth, window.innerHeight );
+        renderer.setSize( xWidth,  yHeight );
         raycaster.setFromCamera( mouse, camera );
     }
 
 
-		$(window).click(function (event) {
+    $(window).click(function (event) {
       if(INTERSECTED != null && "Fuse" ==  INTERSECTED.name)
       {
           moveAndLookAt(camera, INTERSECTED.userData, new THREE.Vector3(0,0,0), {duration: 1000}); 
         }
-        else if(INTERSECTED != null && "Fin" ==  INTERSECTED.name)
+        else if( (INTERSECTED != null &&  INTERSECTED.name =="fin") || (INTERSECTED != null && "Fin" == INTERSECTED.name) )
         {
           moveAndLookAt(camera, INTERSECTED.userData, new THREE.Vector3(0,0,0), {duration: 1000}); 
         }
@@ -248,15 +278,17 @@
       {
         var checkBox = document.getElementById("rotate");
         if (checkBox.checked == true){
-          // rotate
             is_rotating = true;
         } else {
             is_rotating = false;
         }
-      });   
+      });
+      setTimeout(() => { console.log("World!"); }, 2000);
     });
    
   </script>
+
+<div id="scene3d"></canvas>
 
 <div id="info"></div>
 <div id="rotation">

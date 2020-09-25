@@ -1,0 +1,19 @@
+#info {
+	position: absolute;
+	top: 10px;
+	width: 100%;
+	text-align: center;
+	z-index: 100;
+	display:block;
+	color: red;
+	font-size: 5em;
+}
+
+#scene3d{
+	margin: auto;
+	width: 1280px;
+	height: 720px;
+	background: #cccccc;
+	z-index: 100;
+}
+
