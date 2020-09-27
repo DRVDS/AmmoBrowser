@@ -16,7 +16,7 @@
     import { GLTFLoader } from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/GLTFLoader.js';
     import {OrbitControls} from 'https://unpkg.com/three@0.108.0/examples/jsm/controls/OrbitControls.js';
 
-
+    
 
     /* TODO
     
@@ -25,6 +25,37 @@
     icons appear after
 
     */
+
+    class Icon extends THREE.Mesh  
+    {
+      constructor(name, worldPosition, cameraPosition)
+      {
+        let texloader = new THREE.TextureLoader().load( 'cross_alpha.png' );
+        texloader.repeat.set(2,1);
+        let material = new THREE.MeshBasicMaterial( { map: texloader } );
+        let geometry = new THREE.SphereBufferGeometry( 2, 16, 26 );       
+        let mesh = super(geometry, material ); 
+        
+        this.mesh = mesh;
+        this.name = name;
+        this.worldPosition = worldPosition;
+        this.cameraPosition = cameraPosition;
+
+        this.cameraPosition.set(this.cameraPosition.x,
+                          this.cameraPosition.y,
+                          this.cameraPosition.z);
+        
+        this.mesh.position.set(this.worldPosition.x,
+                          this.worldPosition.y,
+                          this.worldPosition.z);
+        scene.add(mesh);
+        this.set_visibility(false);  
+      }
+      
+      set_visibility(new_visibility){
+        this.mesh.visible = new_visibility;
+      }
+    };
 
     // Canvas dimensions
     const xWidth =  1280;
@@ -98,18 +129,9 @@
     var m_icon = new THREE.MeshBasicMaterial( { map: texture } );
     var geometry = new THREE.SphereBufferGeometry( 2, 16, 26 );
     
-    fuseIcon = new THREE.Mesh( geometry, m_icon );
-    fuseIcon.name = "Fuse";
-    fuseIcon.userData = new THREE.Vector3(0.5, 42, 24);
-    fuseIcon.position.set(0,18,8);    
-    scene.add(fuseIcon);
+    fuseIcon = new Icon("Fuse", new THREE.Vector3 (0,18,8), new THREE.Vector3(0.5, 42, 24) );
+    finsIcon = new Icon("Fin", new THREE.Vector3 (0,-18,8), new THREE.Vector3(-2, -29.3, 33) );
     
-    finsIcon = new THREE.Mesh( geometry, m_icon );
-    finsIcon.name = "Fin";
-    finsIcon.userData = new THREE.Vector3(-2, -29.3, 33);
-    finsIcon.position.set(0,-18,8);    
-    scene.add(finsIcon);
-
     window.addEventListener( 'mousemove', onMouseMove, false );
     window.addEventListener( 'resize', onWindowResize, false );
 
@@ -255,11 +277,11 @@
     $(window).click(function (event) {
       if(INTERSECTED != null && "Fuse" ==  INTERSECTED.name)
       {
-          moveAndLookAt(camera, INTERSECTED.userData, new THREE.Vector3(0,0,0), {duration: 1000}); 
+          moveAndLookAt(camera, INTERSECTED.cameraPosition, new THREE.Vector3(0,0,0), {duration: 1000}); 
         }
         else if( (INTERSECTED != null &&  INTERSECTED.name =="fin") || (INTERSECTED != null && "Fin" == INTERSECTED.name) )
         {
-          moveAndLookAt(camera, INTERSECTED.userData, new THREE.Vector3(0,0,0), {duration: 1000}); 
+          moveAndLookAt(camera, INTERSECTED.cameraPosition, new THREE.Vector3(0,0,0), {duration: 1000}); 
         }
     })
   
@@ -283,8 +305,13 @@
             is_rotating = false;
         }
       });
-      setTimeout(() => { console.log("World!"); }, 2000);
+      setTimeout(() => { callback(); }, 2000);
     });
+
+    function callback(){
+      fuseIcon.set_visibility(true);
+      finsIcon.set_visibility(true);
+    }
    
   </script>
 
