@@ -15,6 +15,7 @@
     import * as THREE from 'https://unpkg.com/three@0.120.1/build/three.module.js';
     import { GLTFLoader } from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/GLTFLoader.js';
     import {OrbitControls} from 'https://unpkg.com/three@0.108.0/examples/jsm/controls/OrbitControls.js';
+    import {GUI} from 'https://unpkg.com/three@0.108.0/examples/jsm/libs/dat.gui.module'
 
     
 
@@ -71,9 +72,12 @@
     let model = [];   // model consists of different parts
 
     // UI-part
-    let is_rotating = true;
-    
-    let intro = true;
+    let b_rotating = true;
+    let b_displayIcon = false;
+
+    let intro = true; 
+    let introabort = false;
+
     
     // create the three.js scene
     scene = new THREE.Scene();
@@ -94,7 +98,7 @@
     $('p').append(renderer.domElement);
 
     controls = new OrbitControls( camera, renderer.domElement);
-    controls.enablePan = false;
+   // controls.enablePan = false;
     camera.position.z = 60;
    
     // LIGHTS
@@ -131,6 +135,10 @@
     
     fuseIcon = new Icon("Fuse", new THREE.Vector3 (0,18,8), new THREE.Vector3(0.5, 42, 24) );
     finsIcon = new Icon("Fin", new THREE.Vector3 (0,-18,8), new THREE.Vector3(-2, -29.3, 33) );
+
+    
+    //const controlsFolder = gui.addFolder("Controls");
+    //controlsFolder.add(this, "b_rotating");
     
     window.addEventListener( 'mousemove', onMouseMove, false );
     window.addEventListener( 'resize', onWindowResize, false );
@@ -161,7 +169,7 @@
         console.log("Mesh Loaded successfully");
     }
 
-    
+    /*
     function moveAndLookAt(camera, dstpos, dstlookat, options) 
     {
       options || (options = {duration: 3000});
@@ -171,9 +179,9 @@
 
       camera.position.set(dstpos.x, dstpos.y, dstpos.z);
       camera.lookAt(dstlookat);
+      
       var dstrot = new THREE.Euler().copy(camera.rotation)
       var finalrot = camera.rotation;
-      //console.log(dstrot);
 
       // reset original position and rotation
       camera.position.set(origpos.x, origpos.y, origpos.z);
@@ -201,31 +209,80 @@
         }).onComplete(function(){}).start();
       }).call(this);
     }
+    */
+    function moveAndLookAt(camera, dstpos) 
+    {     
+      // position
+      new TWEEN.Tween(camera.target).to({
+        x: dstpos.x,
+        y: dstpos.y,
+        z: dstpos.z
+      }, 3000).start();
+
+      // rotation (using slerp)
+      (function () {
+        var qa = new THREE.Quaternion().copy(camera.quaternion); // src quaternion
+        var qb = new THREE.Quaternion().setFromEuler(dstrot); // dst quaternion
+        var qm = new THREE.Quaternion();
+        camera.quaternion.set( qm );
+        
+        var o = {t: 0};
+        new TWEEN.Tween(o).to({t: 1}, options.duration).onUpdate(function () {
+        THREE.Quaternion.slerp(qa, qb, qm, o.t);
+        camera.quaternion.set(qm.x, qm.y, qm.z, qm.w);
+      
+        }).onComplete(function(){}).start();
+      }).call(this);
+    }
+
+
+      /* Render loop */
 
     function animate(){
       // from where to raycast
       raycaster.setFromCamera( mouse, camera );
       
-      if(intro){
-        
-      }
+      /* Intro */
 
-      if(is_rotating){    
-        model.forEach(rotateComponents); 
-        function rotateComponents(c)
+      if(intro)
+      {
+        document.getElementById("rotate").checked = true;
+        model.forEach(function(m)
         {
-          if(c.rotation.y <= Math.PI ){
-            c.rotation.y += 0.005;
-          }else{
-            is_rotating = false;
-            c.rotation.y = 0;
+          if(m.rotation.y <= Math.PI && !introabort){
+            m.rotation.y += 0.005;
           }
+          else{
+            document.getElementById("rotate").checked = false;
+            b_rotating = false;
+            intro = false; 
+            fuseIcon.set_visibility(true);
+            finsIcon.set_visibility(true);
+          }
+        })
+      }
+      else
+      {
+        if(b_rotating){    
+          model.forEach(function(m){
+            m.rotation.y += 0.005;
+          })
         }
       }
-      
-      // have the icons rotate towards the camera
-      fuseIcon.lookAt(camera.position);
-      finsIcon.lookAt(camera.position);
+
+      /* Display Icons */
+
+      if(b_displayIcon){
+          fuseIcon.set_visibility(true);
+          finsIcon.set_visibility(true);
+          // have the icons rotate towards the camera
+          fuseIcon.lookAt(camera.position);
+          finsIcon.lookAt(camera.position);
+      }else{
+          fuseIcon.set_visibility(false);
+          finsIcon.set_visibility(false);
+      }
+
 
       // calculate objects intersecting the picking ray
       // set recursive search true so that we find the child elements otherwise scene children is empty
@@ -233,12 +290,8 @@
       if ( intersects.length > 0 ) 
       {
         if ( INTERSECTED != intersects[ 0 ].object )
-        {
-         // if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
-          
+        {          
             INTERSECTED = intersects[ 0 ].object;
-        //  INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
-        //  INTERSECTED.material.emissive.setHex( 0xffff00 );
             console.log((INTERSECTED.name));
           if ( (INTERSECTED.name).includes("fin")){     document.getElementById("info").innerHTML = "Fin";  }
           if ( (INTERSECTED.name).includes("fuse")){     document.getElementById("info").innerHTML = "Fuse";  }
@@ -277,8 +330,8 @@
     $(window).click(function (event) {
       if(INTERSECTED != null && "Fuse" ==  INTERSECTED.name)
       {
-          moveAndLookAt(camera, INTERSECTED.cameraPosition, new THREE.Vector3(0,0,0), {duration: 1000}); 
-        }
+          moveAndLookAt(camera, INTERSECTED.cameraPosition, new THREE.Vector3(0,0,0), {duration: 1000});
+      }
         else if( (INTERSECTED != null &&  INTERSECTED.name =="fin") || (INTERSECTED != null && "Fin" == INTERSECTED.name) )
         {
           moveAndLookAt(camera, INTERSECTED.cameraPosition, new THREE.Vector3(0,0,0), {duration: 1000}); 
@@ -299,28 +352,30 @@
       $('#rotate').change(function() 
       {
         var checkBox = document.getElementById("rotate");
-        if (checkBox.checked == true){
-            is_rotating = true;
-        } else {
-            is_rotating = false;
-        }
+        
+        checkBox.checked ? b_rotating=true : b_rotating=false; introabort=true;
+    
+        
       });
-      setTimeout(() => { callback(); }, 2000);
+      $('#icons').change(function() 
+      {
+        var checkBox = document.getElementById("icons");
+        
+        checkBox.checked ? b_displayIcon=true : b_displayIcon=false; 
+        
+      });
     });
-
-    function callback(){
-      fuseIcon.set_visibility(true);
-      finsIcon.set_visibility(true);
-    }
    
   </script>
 
 <div id="scene3d"></canvas>
 
 <div id="info"></div>
-<div id="rotation">
-  <label for="rotate">Auto Rotate:</label> 
+<div id="controls">
+  <label for="rotate">Rotate Object:</label> 
   <input type="checkbox" id="rotate">
+  <label for="icons">Show Icons:</label> 
+  <input type="checkbox" id="icons">
 </div>
 
   
