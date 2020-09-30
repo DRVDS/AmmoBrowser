@@ -47,20 +47,25 @@ input[type=checkbox]{
 	z-index: 100;
 }
 
-#weaponinfo{
+#weaponInfo{
 	position: absolute;	/*children need to be absolute*/
 	top:100px;
 	right: 50px;
-	width: 400px; 
-	height: 520px;
+	width: 400px; 	
+	height: 70px;   /* 520px   70px */
 	/* background-color: #cccccc33;  alpha channel added */
 	background-color: rgba(73,73,73, 0.2); /* same */
 	box-shadow: 2px 2px;
 	
+	font-family: 'Roboto';
+	text-align: center;
 }
 
-#weaponinfo > h2{
-	text-align: center;
+#weaponInfo > h2{
 	color: #FFFFFF;
-	font-family: 'Roboto';
+}
+
+#weaponInfoDescription{
+	color: #FFFFFF;
+	display: none;
 }

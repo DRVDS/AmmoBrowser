@@ -113,7 +113,6 @@
     // save what icon is in focus 
     let icon_focused;
 
-    
     // create the three.js scene
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
@@ -127,16 +126,11 @@
 
     var scene3d = document.getElementById("scene3d");
     scene3d.appendChild(renderer.domElement); 
-    
-    //$('body').append(renderer.domElement);
-
-    $('p').append(renderer.domElement);
-
+  
     controls = new OrbitControls( camera, renderer.domElement);
    // controls.enablePan = false;
     camera.position.set(cameraStartPosition.x, cameraStartPosition.y, cameraStartPosition.z);
   
-   
     // LIGHTS
     const light1 = new THREE.PointLight(0xffffff,3);
     light1.position.set(0,30,50);
@@ -209,6 +203,10 @@
 
       /* Display Icons */
       icon_visibility();
+
+      /* Weapon Info Visibility*/
+
+      weaponinfo_visibility();
 
       /*  Check if user scrolled out from focused area*/
       perform_SphereTest();
@@ -285,12 +283,12 @@
         var checkBox = document.getElementById("icons");
         
         checkBox.checked ? b_displayIcon=true: b_displayIcon=false; 
-        
+
       });
     });
 
-    $('#weaponinfo').click(function () {
-        toggle_weaponinfo();
+    $('#weaponInfo').click(function () {
+        
     })
 
     // mouse event
@@ -340,14 +338,58 @@
       if(b_displayIcon){
           fuseIcon.set_visibility(true);
           finsIcon.set_visibility(true);
-          set_weaponinfo(true);
           // have the icons rotate towards the camera
           fuseIcon.lookAt(camera.position);
           finsIcon.lookAt(camera.position);
       }else{
           fuseIcon.set_visibility(false);
           finsIcon.set_visibility(false);
-          set_weaponinfo(false);
+          
+      }
+    }
+
+    function weaponinfo_visibility()
+    {
+  
+      if(!weaponInfo_isTweening)   
+      {
+        const e = document.getElementById("weaponInfo");
+        const weapon_desc = document.getElementById("weaponInfoDescription");
+        const extended = new THREE.Vector2(400,520);
+        const shrunk = new THREE.Vector2(400,70);
+         
+        if( !weaponInfo_show && icon_focused)
+        {
+          weaponInfo_isTweening = true;
+          new TWEEN.Tween(shrunk).to({     // lerp the camera
+            x: extended.x,
+            y: extended.y   
+          }, 1000).onUpdate(function() 
+          {
+            e.style.width  = shrunk.x + 'px'
+            e.style.height = shrunk.y + 'px'
+          }).onComplete(function(){
+            weaponInfo_isTweening = false;
+            weaponInfo_show = true;
+            weapon_desc.style.display = "block";
+          }).start();
+        }
+        else if( weaponInfo_show && !icon_focused)
+        {
+          weaponInfo_isTweening = true;
+          new TWEEN.Tween(extended).to({     // lerp the camera
+            x: shrunk.x,
+            y: shrunk.y   
+          }, 1000).onUpdate(function() 
+          { 
+            e.style.width  = extended.x + 'px'
+            e.style.height = extended.y + 'px'
+          }).onComplete(function(){
+            weaponInfo_isTweening = false;
+            weaponInfo_show = false;
+            weapon_desc.style.display = "none";
+          }).start();
+        }
       }
     }
 
@@ -460,37 +502,7 @@
       }).call(this);
     }
 
-    function set_weaponinfo(b_showInfo)
-    {
-      const e = document.getElementById("weaponinfo");
-      const extended = new THREE.Vector2(400,520);
-      const shrunk = new THREE.Vector2(400,70);
-      
-      if(!weaponInfo_isTweening){
-        weaponInfo_isTweening = true;
-        if( b_showInfo && !weaponInfo_show )
-        {
-          new TWEEN.Tween(extended).to({     // lerp the camera
-            x: shrunk.x,
-            y: shrunk.y   
-          }, 1000).onUpdate(function() 
-          { 
-            e.style.width  = extended.x + 'px'
-            e.style.height = extended.y + 'px'
-          }).onComplete(function(){weaponInfo_isTweening = false; weaponInfo_show = true;}).start();
-        }else
-        {
-          new TWEEN.Tween(shrunk).to({     // lerp the camera
-            x: extended.x,
-            y: extended.y   
-          }, 1000).onUpdate(function() 
-          { 
-            e.style.width  = shrunk.x + 'px'
-            e.style.height = shrunk.y + 'px'
-          }).onComplete(function(){weaponInfo_isTweening = false;weaponInfo_show = false;}).start();
-        }
-      }
-    }
+
     
     
   
@@ -515,8 +527,9 @@
   <div id="info">
 
   </div>
-  <div id="weaponinfo">
+  <div id="weaponInfo">
     <h2>Mortar</h2>
+    <p id="weaponInfoDescription"> I am the god of hell fire </p>
   </div>  
 </div>
 
