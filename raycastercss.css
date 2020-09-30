@@ -1,3 +1,32 @@
+#controls{
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 200px;
+	height: 100px;
+	margin: 10px;
+	padding: 10px;
+	font-size: 15px;
+	color: white;
+	/*background: #000;*/
+}
+
+.control-element{
+	width: 140px;
+	height: 20px;
+	padding: 2px;
+}
+
+input[type=checkbox]{
+	float: right;
+}
+
+#controls > label{
+	width: 80px;
+}
+
+
+
 #info {
 	position: absolute;
 	top: 10px;
@@ -10,6 +39,7 @@
 }
 
 #scene3d{
+	position: relative;		/*parent needs to be relative */
 	margin: auto;
 	width: 1280px;
 	height: 720px;
@@ -17,3 +47,20 @@
 	z-index: 100;
 }
 
+#weaponinfo{
+	position: absolute;	/*children need to be absolute*/
+	top:100px;
+	right: 50px;
+	width: 400px; 
+	height: 520px;
+	/* background-color: #cccccc33;  alpha channel added */
+	background-color: rgba(73,73,73, 0.2); /* same */
+	box-shadow: 2px 2px;
+	
+}
+
+#weaponinfo > h2{
+	text-align: center;
+	color: #FFFFFF;
+	font-family: 'Roboto';
+}
