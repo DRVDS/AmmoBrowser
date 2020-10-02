@@ -15,7 +15,24 @@
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.120.1/build/three.module.js';
     import { GLTFLoader } from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/GLTFLoader.js';
-    import {OrbitControls} from 'https://unpkg.com/three@0.108.0/examples/jsm/controls/OrbitControls.js';    
+    import {OrbitControls} from 'https://unpkg.com/three@0.108.0/examples/jsm/controls/OrbitControls.js';
+    
+    
+
+    /****** Global Variables *****/ 
+    
+    let scene, camera, renderer, controls;
+    
+    // raycast stuff
+    let raycaster = new THREE.Raycaster();
+    let mouse = new THREE.Vector2()
+    let INTERSECTED;
+
+    // Canvas dimensions
+    const xWidth =  1280;
+    const yHeight = 720;
+
+    /****** Classes  *****/       
 
     class Sphere{
         constructor(spherePosition,radius)
@@ -40,7 +57,7 @@
   
     class Icon extends THREE.Mesh  
     {
-      constructor(iconName, iconPosition, pivotPosition, dstPosition)
+      constructor(iconName, iconPosition, pivotPosition, dstPosition,modelOffset)
       {
         super();    // call to the Mesh parent class
         this.iconName = iconName;
@@ -93,95 +110,101 @@
       add_Icon(iconToAdd){
         this.iconArray.push(iconToAdd);
       }
-      
+      get_Icons(){
+        return this.iconArray;
+      }
 
+      set_icon_visibility(visibility)
+      {     // loop through the array of icons
+        if(visibility){
+            this.iconArray.forEach(element => {
+              element.set_visibility(true);
+            });
+          }else{
+          this.iconArray.forEach(element => {
+              element.set_visibility(false);
+            }); 
+        }
+      }   
     }
 
     class mainAppState
     {
         constructor()
         {
-          // Canvas dimensions
-          this.xWidth =  1280;
-          this.yHeight = 720;
-
           this.cameraStartPosition = new THREE.Vector3(0,0,60);
-
-          // Global Variables 
-          let scene, camera, renderer, controls;
           
-          // raycast stuff
-          this.raycaster = new THREE.Raycaster();
-          this.mouse = new THREE.Vector2()
-          this.INTERSECTED;
-
           // 3-D models
-          let fuseIcon,finsIcon;
           this.model = [];   // model consists of different parts
-          let modelOffset = new THREE.Vector3(0,0,0); // offset the model to the left
+          this.modelOffset = new THREE.Vector3(0,0,0); // offset the model to the left
 
           // Weapons Array
-
-          let weaponsArray = [];
+          this.weaponsArray = [];
+          this.activeWeaponIndex = 0;
 
           // UI-part
-          let b_rotating = true;
-          let b_displayIcon = false;
+          this.b_rotating = true;
+          this.b_displayIcons = false;
 
+          this.weaponInfoDiv = document.getElementById("weaponInfo");
+          this.weaponDescParagraph = document.getElementById("weaponInfoDescription");
+          this.divExtended = new THREE.Vector2(400,520);
+          this.divShrunk = new THREE.Vector2(400,70);
+            
           // state variables
-          let intro = true; 
-          let introabort = false;
-          let is_slerping = false;
-          let weaponInfo_isTweening = false;
-          let weaponInfo_show = false;
+          this.intro = true; 
+          this.introabort = false;
+          this.is_slerping = false;
+          this.weaponInfo_isTweening = false;
+          this.weaponInfo_show = false;
 
           // save what icon is in focus 
-          let icon_focused;
+          this.icon_focused;
         }
 
         setup_scene(){
           // create the three.js scene
-          this.scene = new THREE.Scene();
-          this.scene.background = new THREE.Color(0x202020);
+          scene = new THREE.Scene();
+          scene.background = new THREE.Color(0x202020);
 
           // create a camera
-          this.camera = new THREE.PerspectiveCamera(45,xWidth/yHeight);
+          camera = new THREE.PerspectiveCamera(45,xWidth/yHeight);
 
           // create the renderer 
-          this.renderer = new THREE.WebGLRenderer({antialias: true});
-          this.renderer.setSize(this.xWidth,this.yHeight);
+          renderer = new THREE.WebGLRenderer({antialias: true});
+          renderer.setSize(xWidth,yHeight);
 
-          this.scene3d = document.getElementById("scene3d");
-          this.scene3d.appendChild(this.renderer.domElement); 
+          let scene3d = document.getElementById("scene3d");
+          scene3d.appendChild(renderer.domElement); 
         
-          this.controls = new OrbitControls( this.camera, this.renderer.domElement);
+          controls = new OrbitControls( camera, renderer.domElement);
         // controls.enablePan = false;
-          this.camera.position.set( this.cameraStartPosition.x,
-                                    this.cameraStartPosition.y,
-                                    this.cameraStartPosition.z);
+          camera.position.set(this.cameraStartPosition.x,
+                              this.cameraStartPosition.y,
+                              this.cameraStartPosition.z);
         }
 
         setup_lights(){
           // LIGHTS
           const light1 = new THREE.PointLight(0xffffff,3);
           light1.position.set(0,30,50);
-          this.scene.add(light1);
+          scene.add(light1);
 
           const light2 = new THREE.PointLight(0xffffff,3);
           light2.position.set(50,10,0);
-          this.scene.add(light2);
+          scene.add(light2);
 
           const light3 = new THREE.PointLight(0xffffff,3);
           light3.position.set(0,10,-50);
-          this.scene.add(light3);
+          scene.add(light3);
 
           const light4 = new THREE.PointLight(0xffffff,3);
           light4.position.set(-50,30,0);
-          this.scene.add(light4);
+          scene.add(light4);
 
           const light5 = new THREE.PointLight(0xffffff,3);
           light5.position.set(0,-50,-50);
-          this.scene.add(light5);
+          scene.add(light5);
             
           console.log("Lights added");
 
@@ -190,9 +213,10 @@
         setup_events(){
           window.addEventListener( 'mousemove', onMouseMove, false );
           window.addEventListener( 'resize', onWindowResize, false );
+          console.log("Events added")
         }
 
-        load_Model(modelToLoad)    /*match index with path */
+        load_Model(index)    /*match index with path */
         {       
           const loader = new GLTFLoader();
           const onLoad = ( gltf, position ) => {
@@ -206,78 +230,264 @@
             scene.add( gltf.scene);
           };
 
-          const onProgress = () => {console.log("Loading" + modelToLoad.weaponName + "Model");};
+          const onProgress = () => {console.log("Loading Model");};
           const onError = ( errorMessage ) => { console.log( errorMessage ); };
           
           const objPosition = new THREE.Vector3( 0,0,0 ) //modelOffset.x,modelOffset.y,modelOffset.zz );
+          console.log(this.weaponsArray)
+
+          loader.load( this.weaponsArray[index].filePath, gltf => onLoad( gltf, objPosition ), onProgress, onError );
           
-          loader.load( modelToLoad.filePath, gltf => onLoad( gltf, objPosition ), onProgress, onError );
+          this.activeWeaponIndex = index;
+
           //fuseIcon = loader.load( 'infoicon.glb', gltf => onLoad( gltf, new THREE.Vector3(0,18,10) ), onProgress, onError );
           console.log("Mesh Loaded successfully");
 
         }
         
+        weapon_Info_Visibility()
+        {
+          if(!this.weaponInfo_isTweening)   
+          {            
+            if( !this.weaponInfo_show && this.icon_focused)
+            {
+              this.weaponInfo_isTweening = true;
+              new TWEEN.Tween(this.divShrunk).to({     // lerp the camera
+                x: this.divExtended.x,
+                y: this.divExtended.y   
+              }, 1000).onUpdate(function() 
+              {
+                this.weaponInfoDiv.style.width  = this.divShrunk.x + 'px'
+                this.weaponInfoDiv.style.height = this.divShrunk.y + 'px'
+              }).onComplete(function(){
+                this.weaponInfo_isTweening = false;
+                this.weaponInfo_show = true;
+                this.weapon_desc.style.display = "block";
+              }).start();
+            }
+            else if( this.weaponInfo_show && !this.icon_focused)
+            {
+              this.weaponInfo_isTweening = true;
+              new TWEEN.Tween(this.divExtended).to({     // lerp the camera
+                x: this.Shrunk.x,
+                y: this.Shrunk.y   
+              }, 1000).onUpdate(function() 
+              { 
+                this.weaponInfoDiv.style.width  = this.divExtended.x + 'px'
+                this.weaponInfoDiv.style.height = this.divExtended.y + 'px'
+              }).onComplete(function(){
+                this.weaponInfo_isTweening = false;
+                this.weaponInfo_show = false;
+                weapon_desc.style.display = "none";
+              }).start();
+            }
+          }
+        }
+
+        play_Intro()
+        {
+          if(this.intro)
+          {
+            document.getElementById("rotate").checked = true;
+            this.model.forEach(function(m)
+            {
+              if(m.rotation.y <= Math.PI && !this.introabort){
+                m.rotation.y += 0.005;
+              }
+              else{
+                document.getElementById("rotate").checked = false;
+                this.b_rotating = false;
+                this.intro = false; 
+              }
+            })
+          }
+          else
+          {
+            if(this.b_rotating){    
+              this.model.forEach(function(m){
+                m.rotation.y += 0.005;
+              })
+            }
+          }
+      }
+
+
+      perform_SphereTest()
+      {
+        /* perform Sphere Test - and reset camera if focus is too far away from point of interest*/
+        if(!this.is_slerping && this.icon_focused && !this.icon_focused.sphereOverlap.is_pointInSphere(camera.position))
+        {
+          resetCamera(this.icon_focused,camera);
+        }
+      }
+
+      perform_rayTrace()
+      {
+        // calculate objects intersecting the picking ray
+        // set recursive search true so that we find the child elements otherwise scene children is empty
+        let intersects = raycaster.intersectObjects( scene.children,true );
+        if ( intersects.length > 0 ) 
+        {
+          if ( INTERSECTED != intersects[ 0 ].object )
+          {          
+            INTERSECTED = intersects[ 0 ].object;
+            //console.log((INTERSECTED.name));
+            if ( (INTERSECTED.name).includes("fin")){     document.getElementById("info").innerHTML = "Fin";  }
+            if ( (INTERSECTED.name).includes("fuse")){     document.getElementById("info").innerHTML = "Fuse";  }
+            if ( (INTERSECTED.name).includes("body")){     document.getElementById("info").innerHTML = "Metal body";  }
+          }
+        }else{  // if there is no hit
+                  //  if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
+              document.getElementById("info").innerHTML = "";
+              INTERSECTED = null;
+        }
+      }
+
+        
+      moveAndLookAt(camera, INTERSECTED)
+      {
+        // block the point in sphere test animation loop
+        this.is_slerping = true;
+
+        var origpos = new THREE.Vector3().copy(camera.position); // original position
+        var origrot = new THREE.Euler().copy(camera.rotation); // original rotation
+
+      // camera.position.set(INTERSECTED.dstPosition.x, INTERSECTED.dstPosition.y, INTERSECTED.dstPosition.z);
+      // camera.lookAt(0,0,0);
+        
+        var dstrot = new THREE.Euler().copy(camera.rotation)
+        var finalrot = camera.rotation;
+
+        // reset original position and rotation
+        camera.position.set(origpos.x, origpos.y, origpos.z);
+        camera.rotation.set(origrot.x, origrot.y, origrot.z);
+        
+        // position
+        
+        new TWEEN.Tween(camera.position).to({     // lerp the camera
+          x: INTERSECTED.dstPosition.x,
+          y: INTERSECTED.dstPosition.y,
+          z: INTERSECTED.dstPosition.z
+        }, 1000).start();
+        
+        new TWEEN.Tween(controls.target).to({     // lerp the pivot point 
+          x: INTERSECTED.pivotPosition.x,
+          y: INTERSECTED.pivotPosition.y,
+          z: INTERSECTED.pivotPosition.z},1000).start();
+      
+        // rotation (using slerp)
+        (function () {
+          var qa = new THREE.Quaternion().copy(camera.quaternion); // src quaternion
+          var qb = new THREE.Quaternion().setFromEuler(dstrot); // dst quaternion
+          var qm = new THREE.Quaternion();
+          camera.quaternion.set( qm );
+          
+          var o = {t: 0};         // when we slerped to the point we want to focus on 
+          new TWEEN.Tween(o).to({t: 1}, 1000).onComplete(function(){
+            INTERSECTED.set_icon_in_focus(true);
+            this.icon_focused = INTERSECTED;
+            this.is_slerping = false;      // finished
+          }).onUpdate(function () {   // do slerping
+          THREE.Quaternion.slerp(qa, qb, qm, o.t);
+          camera.quaternion.set(qm.x, qm.y, qm.z, qm.w)       
+          }).start();
+        }).call(this);
+      }
+
+
+      resetCamera(INTERSECTED, camera)
+      {
+        // block animation auto return
+        this.is_slerping = true;
+
+        var origpos = new THREE.Vector3().copy(camera.position); // original position
+        var origrot = new THREE.Euler().copy(camera.rotation); // original rotation
+        
+        var dstrot = new THREE.Euler().copy(camera.rotation)
+        var finalrot = camera.rotation;
+
+        // reset original position and rotation
+        camera.position.set(origpos.x, origpos.y, origpos.z);
+        camera.rotation.set(origrot.x, origrot.y, origrot.z);
+        
+        // position
+        
+        new TWEEN.Tween(camera.position).to({     // lerp the camera
+          x: cameraStartPosition.x,
+          y: cameraStartPosition.y,
+          z: cameraStartPosition.z
+        }, 1000).start();
+        
+        new TWEEN.Tween(controls.target).to({     // lerp the pivot point 
+          x: 0,
+          y: 0,
+          z: 0},1000).start();
+      
+        // rotation (using slerp)
+        (function () {
+          var qa = new THREE.Quaternion().copy(camera.quaternion); // src quaternion
+          var qb = new THREE.Quaternion().setFromEuler(dstrot); // dst quaternion
+          var qm = new THREE.Quaternion();
+          camera.quaternion.set( qm );
+          
+          var o = {t: 0};         // when we slerped to the point we want to focus on 
+          new TWEEN.Tween(o).to({t: 1}, 1000).onComplete(function(){
+            INTERSECTED.set_icon_in_focus(false);
+            this.icon_focused = null;
+            this.is_slerping = false;      // finished
+          }).onUpdate(function () {   // do slerping
+          THREE.Quaternion.slerp(qa, qb, qm, o.t);
+          camera.quaternion.set(qm.x, qm.y, qm.z, qm.w)       
+          }).start();
+        }).call(this);
+      }
+        
 
         /* Render loop */
 
-        animate(){
+      animate()
+      {
           // from where to raycast
-          this.raycaster.setFromCamera( this.mouse, this.camera );
-                
-                /* Intro - rotate object when page is loading*/
-                playintro();
-
-                /* Display Icons */
-                icon_visibility();
-
-                /* Weapon Info Visibility*/
-
-                weaponinfo_visibility();
-
-                /*  Check if user scrolled out from focused area*/
-                perform_SphereTest();
-
-                // calculate objects intersecting the picking ray
-                // set recursive search true so that we find the child elements otherwise scene children is empty
-                var intersects = this.raycaster.intersectObjects( this.scene.children,true );
-                if ( intersects.length > 0 ) 
-                {
-                  if ( INTERSECTED != intersects[ 0 ].object )
-                  {          
-                        INTERSECTED = intersects[ 0 ].object;
-                        //console.log((INTERSECTED.name));
-                    if ( (INTERSECTED.name).includes("fin")){     document.getElementById("info").innerHTML = "Fin";  }
-                    if ( (INTERSECTED.name).includes("fuse")){     document.getElementById("info").innerHTML = "Fuse";  }
-                    if ( (INTERSECTED.name).includes("body")){     document.getElementById("info").innerHTML = "Metal body";  }
-
-                  }
-
-                } else {  // if there is no hit
-                  //  if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
-                    document.getElementById("info").innerHTML = "";
-                    INTERSECTED = null;
-                }
-
-
-                requestAnimationFrame(animate);
-                TWEEN.update();
-                this.controls.update();
-                this.renderer.render(this.scene, this.camera);
-                
-                
-
-
-        }
+        raycaster.setFromCamera( mouse, camera );
         
+        /* Intro - rotate object when page is loading*/
+        play_Intro();
+  
+        /* Display Icons */
+        if( this.activeWeapon ){
+          this.activeWeapon.set_icon_visibility(this.b_displayIcons);
+        } 
+        
+        /* Rotate icons towards the camera if they are visible */
+        if(this.b_displayIcons)
+        {
+          get_Icons().forEach(element => {
+              element.lookAt(camera.position);
+          });  
+        }
+  
+        /* Weapon Info Visibility*/
+        this.weapon_Info_Visibility();
 
+        /*  Check if user scrolled out from focused area*/
+        this.perform_SphereTest();
 
-      // AXES HELPER DEBUG
-      //scene.add(new THREE.AxesHelper(500));
+        /*  do the ray trace to see what the mouse intersects*/
+        this.perform_rayTrace();
 
+        
+        /* AXES HELPER DEBUG */
+        //scene.add(new THREE.AxesHelper(500));
 
-
-
+        requestAnimationFrame(this.animate);
+        TWEEN.update();
+        controls.update();
+        renderer.render(scene, camera);
+                
+      }
+    
     }
+    
 
     
     /* Entry Point  -  Initial Setup */
@@ -294,44 +504,41 @@
 /******** ADD MORE WEAPONS HERE *******/
 
     // create a weapon object Weapon name and file of the model to load
-    weapon_tmp = new Weapon("Mortar","Mortarseparated.glb");
+    let weapon_tmp = new Weapon("Mortar","Mortarseparated.glb");
     
     // add Icon objects to denote the points of interest on the weapon
-    /*                           Icon position                  Pivot position              Camera-angle at pivot */
-    let icon_tmp = new Icon("Fuse", new THREE.Vector3 (-2,18,8) , new THREE.Vector3 (0,18,0), new THREE.Vector3(0.5 , 42, 24) );
+    /*                           Icon position                  Pivot position              Camera-angle at pivot                 ModelOffset */
+    let icon_tmp = new Icon("Fuse", new THREE.Vector3 (-2,18,8) , new THREE.Vector3 (0,18,0), new THREE.Vector3(0.5 , 42, 24), mainApp.modelOffset );
     weapon_tmp.add_Icon(icon_tmp);
 
-    icon_tmp = new Icon("Fin",  new THREE.Vector3 (-2,-18,8), new THREE.Vector3(0,-17,0), new THREE.Vector3(17.8, -26.7, 14) );  
+    icon_tmp = new Icon("Fin",  new THREE.Vector3 (-2,-18,8), new THREE.Vector3(0,-17,0), new THREE.Vector3(17.8, -26.7, 14), mainApp.modelOffset  );  
     weapon_tmp.add_Icon(icon_tmp);
     
     // push the weapon into the weaponsArray in the mainApp Class
-    mainApp.weaponsArray.push(weapon);
+    mainApp.weaponsArray.push(weapon_tmp);
 
 /**************************************/
     
-    mainApp.load_Model(
-      mainApp.weaponsArray[0]
-    );
+    // load the first Model
+
+    mainApp.load_Model(0);
 
 
-    animate();
+    mainApp.animate();
 
 
-
-    
-  
 
 
     $(window).click(function (event) {
       if( INTERSECTED != null && INTERSECTED.iconName != undefined) 
       {
-        if(INTERSECTED != icon_focused){      
-          if(icon_focused){       // if another icon is already in focus unfocus that
-            icon_focused.set_icon_in_focus(false);
+        if(INTERSECTED != this.icon_focused){      
+          if(this.icon_focused){       // if another icon is already in focus unfocus that
+            this.icon_focused.set_icon_in_focus(false);
           }
           moveAndLookAt(camera, INTERSECTED)
         }
-        else if(INTERSECTED == icon_focused){
+        else if(INTERSECTED == this.icon_focused){
           resetCamera(INTERSECTED, camera)
           console.log("Reset");
         }
@@ -354,7 +561,7 @@
       {
         var checkBox = document.getElementById("rotate");
         
-        checkBox.checked ? b_rotating=true : b_rotating=false; introabort=true;
+        checkBox.checked ? this.b_rotating=true : this.b_rotating=false; this.introabort=true;
     
         
       });
@@ -362,7 +569,7 @@
       {
         var checkBox = document.getElementById("icons");
         
-        checkBox.checked ? b_displayIcon=true: b_displayIcon=false; 
+        checkBox.checked ? this.b_displayIcons=true: this.b_displayIcons=false; 
 
       });
     });
@@ -385,209 +592,10 @@
         raycaster.setFromCamera( mouse, camera );
     }
 
-    function playintro(){
-      if(intro)
-      {
-        document.getElementById("rotate").checked = true;
-        model.forEach(function(m)
-        {
-          if(m.rotation.y <= Math.PI && !introabort){
-            m.rotation.y += 0.005;
-          }
-          else{
-            document.getElementById("rotate").checked = false;
-            b_rotating = false;
-            intro = false; 
-            fuseIcon.set_visibility(true);
-            finsIcon.set_visibility(true);
-          }
-        })
-      }
-      else
-      {
-        if(b_rotating){    
-          model.forEach(function(m){
-            m.rotation.y += 0.005;
-          })
-        }
-      }
-    }
-
-    function icon_visibility()
-    {
-      if(b_displayIcon){
-          fuseIcon.set_visibility(true);
-          finsIcon.set_visibility(true);
-          // have the icons rotate towards the camera
-          fuseIcon.lookAt(camera.position);
-          finsIcon.lookAt(camera.position);
-      }else{
-          fuseIcon.set_visibility(false);
-          finsIcon.set_visibility(false);
-          
-      }
-    }
-
-    function weaponinfo_visibility()
-    {
-  
-      if(!weaponInfo_isTweening)   
-      {
-        const e = document.getElementById("weaponInfo");
-        const weapon_desc = document.getElementById("weaponInfoDescription");
-        const extended = new THREE.Vector2(400,520);
-        const shrunk = new THREE.Vector2(400,70);
-         
-        if( !weaponInfo_show && icon_focused)
-        {
-          weaponInfo_isTweening = true;
-          new TWEEN.Tween(shrunk).to({     // lerp the camera
-            x: extended.x,
-            y: extended.y   
-          }, 1000).onUpdate(function() 
-          {
-            e.style.width  = shrunk.x + 'px'
-            e.style.height = shrunk.y + 'px'
-          }).onComplete(function(){
-            weaponInfo_isTweening = false;
-            weaponInfo_show = true;
-            weapon_desc.style.display = "block";
-          }).start();
-        }
-        else if( weaponInfo_show && !icon_focused)
-        {
-          weaponInfo_isTweening = true;
-          new TWEEN.Tween(extended).to({     // lerp the camera
-            x: shrunk.x,
-            y: shrunk.y   
-          }, 1000).onUpdate(function() 
-          { 
-            e.style.width  = extended.x + 'px'
-            e.style.height = extended.y + 'px'
-          }).onComplete(function(){
-            weaponInfo_isTweening = false;
-            weaponInfo_show = false;
-            weapon_desc.style.display = "none";
-          }).start();
-        }
-      }
-    }
-
-    function perform_SphereTest()
-    {
-      /* perform Sphere Test - and reset camera if focus is too far away from point of interest*/
-      if(!is_slerping && icon_focused && !icon_focused.sphereOverlap.is_pointInSphere(camera.position))
-      {
-        resetCamera(icon_focused,camera);
-      }
-    }
-
-
-       
-    function moveAndLookAt(camera, INTERSECTED)
-    {
-      // block the point in sphere test animation loop
-      is_slerping = true;
-
-      var origpos = new THREE.Vector3().copy(camera.position); // original position
-      var origrot = new THREE.Euler().copy(camera.rotation); // original rotation
-
-     // camera.position.set(INTERSECTED.dstPosition.x, INTERSECTED.dstPosition.y, INTERSECTED.dstPosition.z);
-     // camera.lookAt(0,0,0);
-      
-      var dstrot = new THREE.Euler().copy(camera.rotation)
-      var finalrot = camera.rotation;
-
-      // reset original position and rotation
-      camera.position.set(origpos.x, origpos.y, origpos.z);
-      camera.rotation.set(origrot.x, origrot.y, origrot.z);
-      
-      // position
-      
-      new TWEEN.Tween(camera.position).to({     // lerp the camera
-        x: INTERSECTED.dstPosition.x,
-        y: INTERSECTED.dstPosition.y,
-        z: INTERSECTED.dstPosition.z
-      }, 1000).start();
-      
-      new TWEEN.Tween(controls.target).to({     // lerp the pivot point 
-        x: INTERSECTED.pivotPosition.x,
-        y: INTERSECTED.pivotPosition.y,
-        z: INTERSECTED.pivotPosition.z},1000).start();
-    
-      // rotation (using slerp)
-      (function () {
-        var qa = new THREE.Quaternion().copy(camera.quaternion); // src quaternion
-        var qb = new THREE.Quaternion().setFromEuler(dstrot); // dst quaternion
-        var qm = new THREE.Quaternion();
-        camera.quaternion.set( qm );
-        
-        var o = {t: 0};         // when we slerped to the point we want to focus on 
-        new TWEEN.Tween(o).to({t: 1}, 1000).onComplete(function(){
-          INTERSECTED.set_icon_in_focus(true);
-          icon_focused = INTERSECTED;
-          is_slerping = false;      // finished
-        }).onUpdate(function () {   // do slerping
-        THREE.Quaternion.slerp(qa, qb, qm, o.t);
-        camera.quaternion.set(qm.x, qm.y, qm.z, qm.w)       
-        }).start();
-      }).call(this);
-    }
-
-
-    function resetCamera(INTERSECTED, camera)
-    {
-      // block animation auto return
-      is_slerping = true;
-
-      var origpos = new THREE.Vector3().copy(camera.position); // original position
-      var origrot = new THREE.Euler().copy(camera.rotation); // original rotation
-      
-      var dstrot = new THREE.Euler().copy(camera.rotation)
-      var finalrot = camera.rotation;
-
-      // reset original position and rotation
-      camera.position.set(origpos.x, origpos.y, origpos.z);
-      camera.rotation.set(origrot.x, origrot.y, origrot.z);
-      
-      // position
-      
-      new TWEEN.Tween(camera.position).to({     // lerp the camera
-        x: cameraStartPosition.x,
-        y: cameraStartPosition.y,
-        z: cameraStartPosition.z
-      }, 1000).start();
-      
-      new TWEEN.Tween(controls.target).to({     // lerp the pivot point 
-        x: 0,
-        y: 0,
-        z: 0},1000).start();
-    
-      // rotation (using slerp)
-      (function () {
-        var qa = new THREE.Quaternion().copy(camera.quaternion); // src quaternion
-        var qb = new THREE.Quaternion().setFromEuler(dstrot); // dst quaternion
-        var qm = new THREE.Quaternion();
-        camera.quaternion.set( qm );
-        
-        var o = {t: 0};         // when we slerped to the point we want to focus on 
-        new TWEEN.Tween(o).to({t: 1}, 1000).onComplete(function(){
-          INTERSECTED.set_icon_in_focus(false);
-          icon_focused = null;
-          is_slerping = false;      // finished
-        }).onUpdate(function () {   // do slerping
-        THREE.Quaternion.slerp(qa, qb, qm, o.t);
-        camera.quaternion.set(qm.x, qm.y, qm.z, qm.w)       
-        }).start();
-      }).call(this);
-    }
-
-  
-    
-    
-  
 
   </script>
+
+
 
 
 <div id="scene3d">
