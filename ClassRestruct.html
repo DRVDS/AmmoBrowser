@@ -141,7 +141,7 @@
           // Weapons Array
           this.weaponsArray = [];
           this.activeWeaponIndex = 0;
-
+          
           // UI-part
           this.b_rotating = true;
           this.b_displayIcons = false;
@@ -216,26 +216,98 @@
           console.log("Events added")
         }
 
+
+        play_Intro()
+          {
+              if(this.intro)
+              {
+                  document.getElementById("rotate").checked = true;
+                  this.model.forEach(function(m)
+                  {
+                    if(m.rotation.y <= Math.PI && !mainApp.introabort){
+                      m.rotation.y += 0.005;
+                    }
+                    else{
+                      document.getElementById("rotate").checked = false;
+                      mainApp.b_rotating = false;
+                      mainApp.intro = false; 
+                    }
+                  })
+              }
+              else
+              {
+                  if(this.b_rotating){    
+                    this.model.forEach(function(m){
+                      m.rotation.y += 0.005;
+                    })
+                  }
+              }
+          }
+                /* Render loop */
+
+        animate()
+        {
+          // from where to raycast
+          raycaster.setFromCamera( mouse, camera );
+
+          /* Intro - rotate object when page is loading*/
+          //this.play_Intro();
+
+          /* Display Icons */
+          if( this.weaponsArray[ this.activeWeaponIndex] )
+          {
+              this.weaponsArray[ this.activeWeaponIndex].set_icon_visibility( this.b_displayIcons);
+          } 
+
+          /* Rotate icons towards the camera if they are visible */
+          if( this.b_displayIcons)
+          {
+            this.weaponsArray[ this.activeWeaponIndex].get_Icons().forEach(element => {  element.lookAt(camera.position);     });  
+          }
+
+          /* Weapon Info Visibility*/
+          this.weapon_Info_Visibility();
+
+          /*  Check if user scrolled out from focused area*/
+          this.perform_SphereTest();
+
+          /*  do the ray trace to see what the mouse intersects*/
+          this.perform_rayTrace();
+
+          /* AXES HELPER DEBUG */
+          //scene.add(new THREE.AxesHelper(500));
+
+          requestAnimationFrame( this.animate.bind(this) );
+          TWEEN.update();
+          controls.update();
+          renderer.render(scene, camera);
+        }
+
+        
+
+
+
         load_Model(index)    /*match index with path */
         {       
           const loader = new GLTFLoader();
-          const onLoad = ( gltf, position ) => {
-                gltf.scene.traverse(function (child){
-                  gltf.scene.position.copy(position);
-                // scale the mesh up
-                //child.scale.set(1.2,1.2,1.2);
-                this.model.push(child);
-              }
-            );
-            scene.add( gltf.scene);
-          };
 
           const onProgress = () => {console.log("Loading Model");};
           const onError = ( errorMessage ) => { console.log( errorMessage ); };
+          const onLoad = ( gltf, position ) => {
+                    gltf.scene.traverse(function (child){
+                      gltf.scene.position.copy(position);
+                    // scale the mesh up
+                    //child.scale.set(1.2,1.2,1.2);
+                    mainApp.model.push(child);
+                  }
+                );
+                scene.add( gltf.scene);
+              };
+
           
           const objPosition = new THREE.Vector3( 0,0,0 ) //modelOffset.x,modelOffset.y,modelOffset.zz );
-          console.log(this.weaponsArray)
-
+          
+            
           loader.load( this.weaponsArray[index].filePath, gltf => onLoad( gltf, objPosition ), onProgress, onError );
           
           this.activeWeaponIndex = index;
@@ -284,40 +356,15 @@
           }
         }
 
-        play_Intro()
-        {
-          if(this.intro)
-          {
-            document.getElementById("rotate").checked = true;
-            this.model.forEach(function(m)
-            {
-              if(m.rotation.y <= Math.PI && !this.introabort){
-                m.rotation.y += 0.005;
-              }
-              else{
-                document.getElementById("rotate").checked = false;
-                this.b_rotating = false;
-                this.intro = false; 
-              }
-            })
-          }
-          else
-          {
-            if(this.b_rotating){    
-              this.model.forEach(function(m){
-                m.rotation.y += 0.005;
-              })
-            }
-          }
-      }
+
 
 
       perform_SphereTest()
       {
         /* perform Sphere Test - and reset camera if focus is too far away from point of interest*/
-        if(!this.is_slerping && this.icon_focused && !this.icon_focused.sphereOverlap.is_pointInSphere(camera.position))
+        if(!mainApp.is_slerping && mainApp.icon_focused && !mainApp.icon_focused.sphereOverlap.is_pointInSphere(camera.position))
         {
-          resetCamera(this.icon_focused,camera);
+          mainApp.resetCamera(mainApp.icon_focused,camera);
         }
       }
 
@@ -342,6 +389,9 @@
               INTERSECTED = null;
         }
       }
+     
+
+
 
         
       moveAndLookAt(camera, INTERSECTED)
@@ -441,51 +491,7 @@
           }).start();
         }).call(this);
       }
-        
-
-        /* Render loop */
-
-      animate()
-      {
-          // from where to raycast
-        raycaster.setFromCamera( mouse, camera );
-        
-        /* Intro - rotate object when page is loading*/
-        play_Intro();
-  
-        /* Display Icons */
-        if( this.activeWeapon ){
-          this.activeWeapon.set_icon_visibility(this.b_displayIcons);
-        } 
-        
-        /* Rotate icons towards the camera if they are visible */
-        if(this.b_displayIcons)
-        {
-          get_Icons().forEach(element => {
-              element.lookAt(camera.position);
-          });  
-        }
-  
-        /* Weapon Info Visibility*/
-        this.weapon_Info_Visibility();
-
-        /*  Check if user scrolled out from focused area*/
-        this.perform_SphereTest();
-
-        /*  do the ray trace to see what the mouse intersects*/
-        this.perform_rayTrace();
-
-        
-        /* AXES HELPER DEBUG */
-        //scene.add(new THREE.AxesHelper(500));
-
-        requestAnimationFrame(this.animate);
-        TWEEN.update();
-        controls.update();
-        renderer.render(scene, camera);
-                
-      }
-    
+            
     }
     
 
@@ -529,6 +535,7 @@
 
 
 
+
     $(window).click(function (event) {
       if( INTERSECTED != null && INTERSECTED.iconName != undefined) 
       {
@@ -536,10 +543,10 @@
           if(this.icon_focused){       // if another icon is already in focus unfocus that
             this.icon_focused.set_icon_in_focus(false);
           }
-          moveAndLookAt(camera, INTERSECTED)
+          mainApp.moveAndLookAt(camera, INTERSECTED)
         }
         else if(INTERSECTED == this.icon_focused){
-          resetCamera(INTERSECTED, camera)
+          mainApp.resetCamera(INTERSECTED, camera)
           console.log("Reset");
         }
   
@@ -561,7 +568,7 @@
       {
         var checkBox = document.getElementById("rotate");
         
-        checkBox.checked ? this.b_rotating=true : this.b_rotating=false; this.introabort=true;
+        checkBox.checked ? mainApp.b_rotating=true : mainApp.b_rotating=false; mainApp.introabort=true;
     
         
       });
@@ -569,7 +576,7 @@
       {
         var checkBox = document.getElementById("icons");
         
-        checkBox.checked ? this.b_displayIcons=true: this.b_displayIcons=false; 
+        checkBox.checked ? mainApp.b_displayIcons=true: mainApp.b_displayIcons=false; 
 
       });
     });
