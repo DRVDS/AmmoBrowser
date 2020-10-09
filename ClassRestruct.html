@@ -103,8 +103,8 @@
     class Weapon{
       constructor(weaponName,filePath)
       {
-        this.weaponsName = "Mortar";
-        this.filePath = "Mortarseparated.glb";
+        this.weaponsName = weaponName
+        this.filePath = filePath;
         this.iconArray = [];
       }
       add_Icon(iconToAdd){
@@ -251,7 +251,7 @@
           raycaster.setFromCamera( mouse, camera );
 
           /* Intro - rotate object when page is loading*/
-          //this.play_Intro();
+          this.play_Intro();
 
           /* Display Icons */
           if( this.weaponsArray[ this.activeWeaponIndex] )
@@ -266,11 +266,11 @@
           }
 
           /* Weapon Info Visibility*/
-          this.weapon_Info_Visibility();
+          //this.weapon_Info_Visibility();
 
           /*  Check if user scrolled out from focused area*/
           this.perform_SphereTest();
-
+      
           /*  do the ray trace to see what the mouse intersects*/
           this.perform_rayTrace();
 
@@ -362,9 +362,9 @@
       perform_SphereTest()
       {
         /* perform Sphere Test - and reset camera if focus is too far away from point of interest*/
-        if(!mainApp.is_slerping && mainApp.icon_focused && !mainApp.icon_focused.sphereOverlap.is_pointInSphere(camera.position))
+        if(!this.is_slerping && this.icon_focused && !this.icon_focused.sphereOverlap.is_pointInSphere(camera.position))
         {
-          mainApp.resetCamera(mainApp.icon_focused,camera);
+          this.resetCamera(this.icon_focused,camera);
         }
       }
 
@@ -424,7 +424,8 @@
           x: INTERSECTED.pivotPosition.x,
           y: INTERSECTED.pivotPosition.y,
           z: INTERSECTED.pivotPosition.z},1000).start();
-      
+                    
+        const thisref = this;
         // rotation (using slerp)
         (function () {
           var qa = new THREE.Quaternion().copy(camera.quaternion); // src quaternion
@@ -435,13 +436,14 @@
           var o = {t: 0};         // when we slerped to the point we want to focus on 
           new TWEEN.Tween(o).to({t: 1}, 1000).onComplete(function(){
             INTERSECTED.set_icon_in_focus(true);
-            this.icon_focused = INTERSECTED;
-            this.is_slerping = false;      // finished
+            thisref.icon_focused = INTERSECTED;
+            thisref.is_slerping = false;      // finished
           }).onUpdate(function () {   // do slerping
           THREE.Quaternion.slerp(qa, qb, qm, o.t);
           camera.quaternion.set(qm.x, qm.y, qm.z, qm.w)       
           }).start();
         }).call(this);
+
       }
 
 
@@ -463,16 +465,16 @@
         // position
         
         new TWEEN.Tween(camera.position).to({     // lerp the camera
-          x: cameraStartPosition.x,
-          y: cameraStartPosition.y,
-          z: cameraStartPosition.z
+          x: this.cameraStartPosition.x,
+          y: this.cameraStartPosition.y,
+          z: this.cameraStartPosition.z
         }, 1000).start();
         
         new TWEEN.Tween(controls.target).to({     // lerp the pivot point 
           x: 0,
           y: 0,
           z: 0},1000).start();
-      
+        
         // rotation (using slerp)
         (function () {
           var qa = new THREE.Quaternion().copy(camera.quaternion); // src quaternion
@@ -539,13 +541,15 @@
     $(window).click(function (event) {
       if( INTERSECTED != null && INTERSECTED.iconName != undefined) 
       {
-        if(INTERSECTED != this.icon_focused){      
-          if(this.icon_focused){       // if another icon is already in focus unfocus that
-            this.icon_focused.set_icon_in_focus(false);
+        if(INTERSECTED != mainApp.icon_focused){      
+          if(mainApp.icon_focused){       // if another icon is already in focus unfocus that
+            mainApp.icon_focused.set_icon_in_focus(false);
           }
+          //requestAnimationFrame( this.animate.bind(this) );
           mainApp.moveAndLookAt(camera, INTERSECTED)
+          console.log(mainApp)
         }
-        else if(INTERSECTED == this.icon_focused){
+        else if(INTERSECTED == mainApp.icon_focused){
           mainApp.resetCamera(INTERSECTED, camera)
           console.log("Reset");
         }
